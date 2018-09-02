@@ -75,7 +75,7 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	
 	// inpaint
 	for (int i = 0; i < 3; i++) {
-		results[i] = RecusriveInpainter(toInpaints[i], inpainedMask, this->lambda, this->theta, this->tolerent, this->multiCoarse, this->multiMid, this->multiFine, this->multiDepth, 1);
+		results[i] = RecusriveInpainter(toInpaints[i], inpainedMask, this->lambda, this->theta, this->omega, this->tolerent, this->multiCoarse, this->multiMid, this->multiFine, this->multiDepth, 1);
 	}
 	
 	// rearrage image [0-1] to [0-255]
