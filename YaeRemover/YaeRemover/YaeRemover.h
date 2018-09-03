@@ -90,8 +90,7 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 			}
 			cnt++;
 		}
-		newSubtitleFrame.copyTo(frame(subtitlePosition));
-		return MatToFrame(frame, env);
+		subtitleFrame = newSubtitleFrame;
 	}
 	
 	// rearrage image [0-255] to [0-1]
