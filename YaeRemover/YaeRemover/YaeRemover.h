@@ -10,12 +10,15 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	Mat frameToMat(PVideoFrame &frame);
 	PVideoFrame MatToFrame(Mat &frameArray, IScriptEnvironment* env);
+	double normOutside(Mat frame, Mat ref, Mat domain);
 private:
 	int left, right, top, bottom; // Position where subtitle appear in frame
 	int stokeWidth, stokeGap;
 	int multiDepth, multiCoarse, multiMid, multiFine;
 	double lambda, theta, tolerent, omega;
+	double normThreshold;
 	Mat smallKernel, bigKernel, stokeKernel;
+	Mat prevFrame;
 	int colorGap;
 };
 
@@ -40,6 +43,8 @@ YaeRemover::YaeRemover(AVSValue args, IScriptEnvironment* env) :
 		this->tolerent = args[13].IsFloat() ? args[13].AsFloat() : 5 * 1e-4;
 		this->omega = args[14].IsFloat() ? args[14].AsFloat() : 1.0;
 		this->colorGap = args[15].IsFloat() ? args[15].AsFloat() : 30;
+		this->normThreshold = args[16].IsFloat() ? args[16].AsFloat() : 2*10e8;
+
 		int smallWidth = stokeWidth - stokeGap > 0 ? (stokeWidth - stokeGap)*2 + 1: 3;
 		int bigWidth = (stokeWidth + stokeGap) * 2 + 1;
 		this->smallKernel = getStructuringElement(MORPH_ELLIPSE,Size(smallWidth,smallWidth));		
@@ -54,10 +59,10 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	Rect subtitlePosition = Rect(left, frame.rows - this->bottom, this->right - this->left, this->bottom - this->top);
 	Mat subtitleFrame = frame(subtitlePosition);
 	Mat blackMask;
-	inRange(subtitleFrame, Scalar(0, 0, 0), Scalar(colorGap, colorGap, colorGap), blackMask);
-	
-	
+	inRange(subtitleFrame, Scalar(0, 0, 0), Scalar(colorGap, colorGap, colorGap), blackMask);	
+
 	if (countNonZero(blackMask) == 0) {
+		this->prevFrame = subtitleFrame.clone(); //เก็บคำตอบไว้ หากเฟรมนี้ไม่ถูก inpaint
 		return src; // immediately return because no-color in range
 	}
 	
@@ -65,7 +70,28 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	dilate(inpainedMask, inpainedMask, this->stokeKernel); //ขั้นที่ 8: stoke ให้เข้มขึ้นเพื่อเป็น mask	
 
 	if (countNonZero(inpainedMask) == 0) {
+		this->prevFrame = subtitleFrame.clone(); //เก็บคำตอบไว้ หากเฟรมนี้ไม่ถูก inpaint
 		return src; // no-inpaint domain detect 
+	}
+	//ตรวจสอบว่ามีคำตอบเดิมหรือไม่ ถ้ามีใกล้เคียงกันหรือไม่ ถ้าใช่ให้คืนเฟรมเดิมไปเลย
+	if (!this->prevFrame.empty() && normOutside(subtitleFrame,this->prevFrame,inpainedMask) < this->normThreshold) {
+		Mat newSubtitleFrame = subtitleFrame.clone();
+		uchar* subtitlePtr = newSubtitleFrame.data;
+		uchar* prevPtr = this->prevFrame.data;
+		uchar* maskPtr = inpainedMask.data;
+		int channel = frame.channels();
+		int i,j,count = subtitleFrame.rows * subtitleFrame.cols * channel;
+		int cnt = 0;
+		for (i = 0; i < count; i += channel) {
+			for (j = 0; j < channel; j++) {
+				if (maskPtr[cnt] != 0) {
+					subtitlePtr[i + j] = prevPtr[i + j];
+				}
+			}
+			cnt++;
+		}
+		newSubtitleFrame.copyTo(frame(subtitlePosition));
+		return MatToFrame(frame, env);
 	}
 	
 	// rearrage image [0-255] to [0-1]
@@ -82,9 +108,33 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	Mat inpaintedArea;
 	merge(results, 3, inpaintedArea);
 	inpaintedArea.convertTo(inpaintedArea, CV_8UC3, 255.0);
-
+	this->prevFrame = inpaintedArea.clone();// เมื่อทำการ inpaint ให้เก็บคำตอบนี้ไว้
 	inpaintedArea.copyTo(frame(subtitlePosition));
 	return MatToFrame(frame, env);
+}
+
+double YaeRemover::normOutside(Mat frame, Mat ref, Mat domain) {
+	Mat stokeDomain;
+	dilate(domain, stokeDomain, this->stokeKernel);
+	stokeDomain -= domain;
+	double norm = 0.0;
+	double temp;
+	uchar *framePtr = frame.data;
+	uchar *refPtr = ref.data;
+	uchar *domainPtr = domain.data;
+	int channel = frame.channels();
+	int count = frame.rows * frame.cols*channel;
+	int i,j,cnt = 0;
+	for (i = 0; i < count; i+=3) {
+		if (domainPtr[cnt] != 0) {
+			for (j = 0; j < channel; j++) {
+				temp = framePtr[i + j] - refPtr[i + j];
+				norm += temp * temp;
+			}
+		}
+		cnt++;
+	}
+	return norm;
 }
 
 Mat YaeRemover::frameToMat(PVideoFrame &frame) {
