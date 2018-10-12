@@ -60,6 +60,9 @@
     <ClInclude Include="inpainter\wSolver.h">
       <Filter>Header Files\inpainter</Filter>
     </ClInclude>
+    <ClInclude Include="inpainter\StructuralSimilarity.h">
+      <Filter>Header Files\inpainter</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
