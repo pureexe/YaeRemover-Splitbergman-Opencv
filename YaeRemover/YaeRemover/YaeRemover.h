@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include "detector/YaeDetector.h"
 #include "inpainter/RecursiveInpainter.h"
+#include "inpainter/StructuralSimilarity.h"
 
 class YaeRemover : public GenericVideoFilter {
 public:
@@ -10,13 +11,14 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 	Mat frameToMat(PVideoFrame &frame);
 	PVideoFrame MatToFrame(Mat &frameArray, IScriptEnvironment* env);
-	double normOutside(Mat frame, Mat ref, Mat domain);
+	double findSSIMmean(Mat &frame, Mat &ref, Mat &domain);
+	Mat copyByDomain(Mat &subtitleFrame, Mat &sourceFrame, Mat &domain);
 private:
 	int left, right, top, bottom; // Position where subtitle appear in frame
 	int stokeWidth, stokeGap;
 	int multiDepth, multiCoarse, multiMid, multiFine;
 	double lambda, theta, tolerent, omega;
-	double normThreshold;
+	double ssimCopy,ssimBorrow;
 	Mat smallKernel, bigKernel, stokeKernel;
 	Mat prevFrame;
 	int colorGap;
@@ -43,7 +45,8 @@ YaeRemover::YaeRemover(AVSValue args, IScriptEnvironment* env) :
 		this->tolerent = args[13].IsFloat() ? args[13].AsFloat() : 5 * 1e-4;
 		this->omega = args[14].IsFloat() ? args[14].AsFloat() : 1.0;
 		this->colorGap = args[15].IsFloat() ? args[15].AsFloat() : 30;
-		this->normThreshold = args[16].IsFloat() ? args[16].AsFloat() : 2*10e8;
+		this->ssimCopy = args[16].IsFloat() ? args[16].AsFloat() : 0.95;
+		this->ssimBorrow = args[16].IsFloat() ? args[16].AsFloat() : 0.90;
 
 		int smallWidth = stokeWidth - stokeGap > 0 ? (stokeWidth - stokeGap)*2 + 1: 3;
 		int bigWidth = (stokeWidth + stokeGap) * 2 + 1;
@@ -73,26 +76,21 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 		this->prevFrame = subtitleFrame.clone(); //เก็บคำตอบไว้ หากเฟรมนี้ไม่ถูก inpaint
 		return src; // no-inpaint domain detect 
 	}
-	//ตรวจสอบว่ามีคำตอบเดิมหรือไม่ ถ้ามีใกล้เคียงกันหรือไม่ ถ้าใช่ให้คืนเฟรมเดิมไปเลย
-	if (!this->prevFrame.empty() && normOutside(subtitleFrame,this->prevFrame,inpainedMask) < this->normThreshold) {
-		Mat newSubtitleFrame = subtitleFrame.clone();
-		uchar* subtitlePtr = newSubtitleFrame.data;
-		uchar* prevPtr = this->prevFrame.data;
-		uchar* maskPtr = inpainedMask.data;
-		int channel = frame.channels();
-		int i,j,count = subtitleFrame.rows * subtitleFrame.cols * channel;
-		int cnt = 0;
-		for (i = 0; i < count; i += channel) {
-			for (j = 0; j < channel; j++) {
-				if (maskPtr[cnt] != 0) {
-					subtitlePtr[i + j] = prevPtr[i + j];
-				}
-			}
-			cnt++;
+	//ถ้ามีเฟรมก่อนหน้า จะทำการพิจารณรา SSIM
+	if (!this->prevFrame.empty()) {
+		double meanSSIM = this->findSSIMmean(subtitleFrame, this->prevFrame, inpainedMask);
+		if (meanSSIM > this->ssimCopy) {
+			//copy frame and return
+			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
+			subtitleFrame.copyTo(frame(subtitlePosition));
+			this->prevFrame = subtitleFrame.clone();
+			return MatToFrame(frame, env);
 		}
-		subtitleFrame = newSubtitleFrame;
+		else if (meanSSIM > this->ssimBorrow) {
+			//borrow frame and continue
+			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
+		}
 	}
-	
 	// rearrage image [0-255] to [0-1]
 	Mat toInpaints[3], results[3];
 	subtitleFrame.convertTo(subtitleFrame, CV_64FC3, 1 / 255.0);
@@ -112,28 +110,30 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	return MatToFrame(frame, env);
 }
 
-double YaeRemover::normOutside(Mat frame, Mat ref, Mat domain) {
-	Mat stokeDomain;
-	dilate(domain, stokeDomain, this->stokeKernel);
-	stokeDomain -= domain;
-	double norm = 0.0;
-	double temp;
-	uchar *framePtr = frame.data;
-	uchar *refPtr = ref.data;
+double YaeRemover::findSSIMmean(Mat &frame, Mat &ref, Mat &domain) {
+	Mat blackImage(Size(frame.rows, frame.cols), frame.type() , Scalar(0, 0, 0));
+	Mat newFrame = this->copyByDomain(frame,blackImage,domain);
+	Mat newRef = this->copyByDomain(ref, blackImage, domain);
+	Scalar ssim = StructuralSimilarity(newFrame, newRef);
+	return (ssim[0] + ssim[1]+ ssim[2]) / 3 ;
+}
+Mat YaeRemover::copyByDomain(Mat &subtitleFrame, Mat &sourceFrame, Mat &domain){
+	Mat resultFrame = subtitleFrame.clone();
+	uchar *framePtr = resultFrame.data;
+	uchar *refPtr = sourceFrame.data;
 	uchar *domainPtr = domain.data;
-	int channel = frame.channels();
-	int count = frame.rows * frame.cols*channel;
-	int i,j,cnt = 0;
-	for (i = 0; i < count; i+=3) {
+	int channel = resultFrame.channels();
+	int count = resultFrame.rows * resultFrame.cols*channel;
+	int i, j, cnt = 0;
+	for (i = 0; i < count; i += 3) {
 		if (domainPtr[cnt] != 0) {
 			for (j = 0; j < channel; j++) {
-				temp = framePtr[i + j] - refPtr[i + j];
-				norm += temp * temp;
+				framePtr[i + j] = refPtr[i + j];
 			}
 		}
 		cnt++;
 	}
-	return norm;
+	return resultFrame;
 }
 
 Mat YaeRemover::frameToMat(PVideoFrame &frame) {
