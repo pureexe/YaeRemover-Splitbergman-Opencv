@@ -51,9 +51,6 @@
     <ClInclude Include="inpainter\SplitbergmanSolver.h">
       <Filter>Header Files\inpainter</Filter>
     </ClInclude>
-    <ClInclude Include="inpainter\uGaussKernel.h">
-      <Filter>Header Files\inpainter</Filter>
-    </ClInclude>
     <ClInclude Include="inpainter\uSolver.h">
       <Filter>Header Files\inpainter</Filter>
     </ClInclude>

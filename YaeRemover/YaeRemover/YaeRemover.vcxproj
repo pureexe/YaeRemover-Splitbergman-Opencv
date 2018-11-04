@@ -161,7 +161,6 @@
     <ClInclude Include="inpainter\Signnum.h" />
     <ClInclude Include="inpainter\SplitbergmanSolver.h" />
     <ClInclude Include="inpainter\StructuralSimilarity.h" />
-    <ClInclude Include="inpainter\uGaussKernel.h" />
     <ClInclude Include="inpainter\uSolver.h" />
     <ClInclude Include="inpainter\wSolver.h" />
     <ClInclude Include="stdafx.h" />
