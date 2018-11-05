@@ -15,9 +15,9 @@ public:
 	Mat copyByDomain(Mat &subtitleFrame, Mat &sourceFrame, Mat &domain);
 private:
 	int left, right, top, bottom; // Position where subtitle appear in frame
-	int stokeWidth, stokeGap;
+	int stokeWidth, stokeGap, gaussSeidelIteration;
 	int multiDepth, multiCoarse, multiMid, multiFine;
-	double lambda, theta, tolerent, omega;
+	double lambda, theta, tolerent, omega, delta;
 	double ssimCopy,ssimBorrow;
 	Mat smallKernel, bigKernel, stokeKernel;
 	Mat prevFrame;
@@ -46,7 +46,9 @@ YaeRemover::YaeRemover(AVSValue args, IScriptEnvironment* env) :
 		this->omega = args[14].IsFloat() ? args[14].AsFloat() : 1.0;
 		this->colorGap = args[15].IsFloat() ? args[15].AsFloat() : 30;
 		this->ssimCopy = args[16].IsFloat() ? args[16].AsFloat() : 0.95;
-		this->ssimBorrow = args[16].IsFloat() ? args[16].AsFloat() : 0.90;
+		this->ssimBorrow = args[17].IsFloat() ? args[16].AsFloat() : 0.90;
+		this->delta = args[18].IsFloat() ? args[18].AsFloat() : 0.02;
+		this->gaussSeidelIteration = args[19].IsInt() ? args[16].AsInt() : 10;
 
 		int smallWidth = stokeWidth - stokeGap > 0 ? (stokeWidth - stokeGap)*2 + 1: 3;
 		int bigWidth = (stokeWidth + stokeGap) * 2 + 1;
@@ -98,7 +100,7 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	
 	// inpaint
 	for (int i = 0; i < 3; i++) {
-		results[i] = RecusriveInpainter(toInpaints[i], inpainedMask, this->lambda, this->theta, this->omega, this->tolerent, this->multiCoarse, this->multiMid, this->multiFine, this->multiDepth, 1);
+		results[i] = RecusriveInpainter(toInpaints[i], inpainedMask, this->lambda, this->theta, this->delta, this->gaussSeidelIteration, this->tolerent, this->multiCoarse, this->multiMid, this->multiFine, this->multiDepth, 1);
 	}
 	
 	// rearrage image [0-1] to [0-255]
