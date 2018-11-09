@@ -4,6 +4,8 @@
 
 #include "SplitBergmanSolver.h"
 #include "MergeResult.h"
+#include "ImageDownSize.h"
+#include "DomainDownSIze.h"
 
 Mat RecusriveInpainter(Mat original_image, Mat inpainted_domain, double lambda, double theta, double delta, int gaussSeidelIteration, double tolerant, int iteration_coarse, int iteration_mid, int iteration_fine, int max_step, int current_step)
 {
@@ -24,8 +26,7 @@ Mat RecusriveInpainter(Mat original_image, Mat inpainted_domain, double lambda, 
 		toinpaint_image = original_image;
 	}
 	Mat inpainted_lambda = (inpainted_domain == 0);
-	inpainted_lambda.convertTo(inpainted_lambda, CV_64F);
-	inpainted_lambda = inpainted_lambda / 255.0 * lambda;
+	inpainted_lambda.convertTo(inpainted_lambda, CV_64F, lambda/255.0);
 	if (current_step != 1) {
 		if (current_step == max_step) {
 			max_iteration = iteration_coarse;

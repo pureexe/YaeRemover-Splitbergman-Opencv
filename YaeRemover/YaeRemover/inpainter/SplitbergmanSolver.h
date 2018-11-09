@@ -22,5 +22,6 @@ Mat SplitBergmanSolver(Mat original_image, Mat lambda, double theta, double delt
 		i++;
 	}
 	//printf("processed with %d loops\n", i);
+	//std::wstring str = L"REMOVE SUBTITLE: Splitberman loop: "+std::to_wstring(i);OutputDebugString(str.data());
 	return u;
 }

@@ -60,6 +60,12 @@
     <ClInclude Include="inpainter\StructuralSimilarity.h">
       <Filter>Header Files\inpainter</Filter>
     </ClInclude>
+    <ClInclude Include="inpainter\ImageDownSize.h">
+      <Filter>Header Files\inpainter</Filter>
+    </ClInclude>
+    <ClInclude Include="inpainter\DomainDownSize.h">
+      <Filter>Header Files\inpainter</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

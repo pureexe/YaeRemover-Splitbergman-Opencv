@@ -155,7 +155,9 @@
   <ItemGroup>
     <ClInclude Include="detector\YaeDetector.h" />
     <ClInclude Include="inpainter\Divergence.h" />
+    <ClInclude Include="inpainter\DomainDownSize.h" />
     <ClInclude Include="inpainter\Gradient.h" />
+    <ClInclude Include="inpainter\ImageDownSize.h" />
     <ClInclude Include="inpainter\MergeResult.h" />
     <ClInclude Include="inpainter\RecursiveInpainter.h" />
     <ClInclude Include="inpainter\Signnum.h" />

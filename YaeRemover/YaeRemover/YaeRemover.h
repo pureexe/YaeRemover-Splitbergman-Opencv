@@ -46,9 +46,12 @@ YaeRemover::YaeRemover(AVSValue args, IScriptEnvironment* env) :
 		this->omega = args[14].IsFloat() ? args[14].AsFloat() : 1.0;
 		this->colorGap = args[15].IsFloat() ? args[15].AsFloat() : 30;
 		this->ssimCopy = args[16].IsFloat() ? args[16].AsFloat() : 0.95;
-		this->ssimBorrow = args[17].IsFloat() ? args[16].AsFloat() : 0.90;
+		this->ssimBorrow = args[17].IsFloat() ? args[17].AsFloat() : 0.90;
 		this->delta = args[18].IsFloat() ? args[18].AsFloat() : 0.02;
-		this->gaussSeidelIteration = args[19].IsInt() ? args[16].AsInt() : 10;
+		this->gaussSeidelIteration = args[19].IsInt() ? args[19].AsInt() : 1;
+
+		//std::wstring str = L"REMOVE SUBTITLE: DELTA "+ std::to_wstring(this->delta) + L" Loop = "+ std::to_wstring(this->gaussSeidelIteration); OutputDebugString(str.data());
+
 
 		int smallWidth = stokeWidth - stokeGap > 0 ? (stokeWidth - stokeGap)*2 + 1: 3;
 		int bigWidth = (stokeWidth + stokeGap) * 2 + 1;
