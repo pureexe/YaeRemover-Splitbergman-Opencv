@@ -14,10 +14,15 @@ Mat RecusriveInpainter(Mat original_image, Mat inpainted_domain, double lambda, 
 		int height = original_image.rows;
 		int width = original_image.cols;
 		Mat half_image, half_domain, half_result, upscale_result;
-		resize(original_image, half_image, cv::Size(width * 0.5, height * 0.5));
-		resize(inpainted_domain, half_domain, cv::Size(width * 0.5, height * 0.5));
+		
+		if (current_step == 1) {
+			GaussianBlur(original_image, original_image, Size(5, 5), 0);
+			GaussianBlur(inpainted_domain, inpainted_domain, Size(5, 5), 0);
+		}
+		resize(original_image, half_image, Size(width * 0.5, height * 0.5), 0, 0, INTER_LINEAR);
+		resize(inpainted_domain, half_domain, Size(width * 0.5, height * 0.5), 0, 0, INTER_LINEAR);
 		half_result = RecusriveInpainter(half_image, half_domain, lambda, theta, omega, tolerant, iteration_coarse, iteration_mid, iteration_fine, max_step, current_step + 1);
-		resize(half_result, upscale_result, cv::Size(width, height));
+		resize(half_result, upscale_result, Size(width, height));
 		toinpaint_image = MergeResult(original_image, inpainted_domain, upscale_result);
 	}
 	else {

@@ -64,8 +64,7 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	Mat blackMask;
 	inRange(subtitleFrame, Scalar(0, 0, 0), Scalar(colorGap, colorGap, colorGap), blackMask);	
 
-	if (countNonZero(blackMask) == 0) {
-		this->prevFrame = subtitleFrame.clone(); //เก็บคำตอบไว้ หากเฟรมนี้ไม่ถูก inpaint
+	if (countNonZero(blackMask) == 0) {		
 		return src; // immediately return because no-color in range
 	}
 	
@@ -73,39 +72,10 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	dilate(inpainedMask, inpainedMask, this->stokeKernel); //ขั้นที่ 8: stoke ให้เข้มขึ้นเพื่อเป็น mask	
 
 	if (countNonZero(inpainedMask) == 0) {
-		this->prevFrame = subtitleFrame.clone(); //เก็บคำตอบไว้ หากเฟรมนี้ไม่ถูก inpaint
 		return src; // no-inpaint domain detect 
 	}
-	//ถ้ามีเฟรมก่อนหน้า จะทำการพิจารณรา SSIM
-	if (!this->prevFrame.empty()) {
-		double meanSSIM = this->findSSIMmean(subtitleFrame, this->prevFrame, inpainedMask);
-		if (meanSSIM > this->ssimCopy) {
-			//copy frame and return
-			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
-			subtitleFrame.copyTo(frame(subtitlePosition));
-			this->prevFrame = subtitleFrame.clone();
-			return MatToFrame(frame, env);
-		}
-		else if (meanSSIM > this->ssimBorrow) {
-			//borrow frame and continue
-			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
-		}
-	}
-	// rearrage image [0-255] to [0-1]
-	Mat toInpaints[3], results[3];
-	subtitleFrame.convertTo(subtitleFrame, CV_64FC3, 1 / 255.0);
-	split(subtitleFrame, toInpaints);
-	
-	// inpaint
-	for (int i = 0; i < 3; i++) {
-		results[i] = RecusriveInpainter(toInpaints[i], inpainedMask, this->lambda, this->theta, this->omega, this->tolerent, this->multiCoarse, this->multiMid, this->multiFine, this->multiDepth, 1);
-	}
-	
-	// rearrage image [0-1] to [0-255]
 	Mat inpaintedArea;
-	merge(results, 3, inpaintedArea);
-	inpaintedArea.convertTo(inpaintedArea, CV_8UC3, 255.0);
-	this->prevFrame = inpaintedArea.clone();// เมื่อทำการ inpaint ให้เก็บคำตอบนี้ไว้
+	inpaint(subtitleFrame, inpainedMask, inpaintedArea,3, INPAINT_TELEA);
 	inpaintedArea.copyTo(frame(subtitlePosition));
 	return MatToFrame(frame, env);
 }
