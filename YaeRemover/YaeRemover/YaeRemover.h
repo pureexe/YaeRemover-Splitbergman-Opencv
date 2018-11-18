@@ -84,14 +84,7 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 	//ถ้ามีเฟรมก่อนหน้า จะทำการพิจารณรา SSIM
 	if (!this->prevFrame.empty()) {
 		double meanSSIM = this->findSSIMmean(subtitleFrame, this->prevFrame, inpainedMask);
-		if (meanSSIM > this->ssimCopy) {
-			//copy frame and return
-			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
-			subtitleFrame.copyTo(frame(subtitlePosition));
-			this->prevFrame = subtitleFrame.clone();
-			return MatToFrame(frame, env);
-		}
-		else if (meanSSIM > this->ssimBorrow) {
+		if (meanSSIM > this->ssimBorrow) {
 			//borrow frame and continue
 			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
 		}
