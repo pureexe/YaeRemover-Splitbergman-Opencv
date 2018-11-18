@@ -91,10 +91,6 @@ PVideoFrame __stdcall YaeRemover::GetFrame(int n, IScriptEnvironment* env) {
 			this->prevFrame = subtitleFrame.clone();
 			return MatToFrame(frame, env);
 		}
-		else if (meanSSIM > this->ssimBorrow) {
-			//borrow frame and continue
-			subtitleFrame = this->copyByDomain(subtitleFrame, this->prevFrame, inpainedMask);
-		}
 	}
 	// rearrage image [0-255] to [0-1]
 	Mat toInpaints[3], results[3];
